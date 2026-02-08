@@ -24,10 +24,36 @@ def calculate_npv_irr(cash_flows, discount_rate, initial_outlay):
     for i, cf in enumerate(cash_flows):
         npv += cf / ((1 + discount_rate) ** (i + 1))
     
-    # IRR calculation using numpy
-    all_cash_flows = [-initial_outlay] + list(cash_flows)
+    # IRR calculation using Newton-Raphson method
+    all_cash_flows = np.array([-initial_outlay] + list(cash_flows))
+    
+    def npv_calc(rate, cash_flows):
+        """Calculate NPV for a given rate"""
+        return sum(cf / (1 + rate) ** i for i, cf in enumerate(cash_flows))
+    
+    def npv_derivative(rate, cash_flows):
+        """Calculate derivative of NPV for Newton-Raphson"""
+        return sum(-i * cf / (1 + rate) ** (i + 1) for i, cf in enumerate(cash_flows))
+    
     try:
-        irr = np.irr(all_cash_flows)
+        # Newton-Raphson method for IRR
+        rate = 0.1  # Initial guess
+        for _ in range(100):  # Max iterations
+            npv_val = npv_calc(rate, all_cash_flows)
+            if abs(npv_val) < 1e-6:  # Converged
+                break
+            derivative = npv_derivative(rate, all_cash_flows)
+            if abs(derivative) < 1e-10:  # Avoid division by zero
+                rate = None
+                break
+            rate = rate - npv_val / derivative
+            if rate < -0.99:  # IRR too negative, invalid
+                rate = None
+                break
+        else:
+            rate = None  # Did not converge
+        
+        irr = rate if rate is not None and not np.isnan(rate) else None
     except:
         irr = None
     
